@@ -42,6 +42,13 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('ENV CHECK:', {
+      hasSupabaseUrl: !!process.env.SUPABASE_URL,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
+      hasBotToken: !!process.env.BOT_TOKEN,
+      userId: process.env.TELEGRAM_USER_ID,
+    });
+
     const todayDbDay = getTodayDbDay();
     const todayDate = getTodayDateString();
 
@@ -51,6 +58,8 @@ export default async function handler(req, res) {
       .select('id, name, emoji, frequency_type, frequency_days')
       .eq('user_id', TELEGRAM_USER_ID)
       .order('order_index', { ascending: true });
+
+    console.log('Fetched habits:', habits, habitsError);
 
     if (habitsError) throw habitsError;
 
@@ -101,6 +110,7 @@ export default async function handler(req, res) {
       ],
     };
 
+    console.log('Sending to userId:', TELEGRAM_USER_ID);
     const result = await sendTelegramMessage(TELEGRAM_USER_ID, text, replyMarkup);
 
     return res.status(200).json({ ok: true, telegram: result });
