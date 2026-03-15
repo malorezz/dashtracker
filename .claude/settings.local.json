@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/dgoli/AppData/Roaming/**)",
+      "Bash(cmd /c \"where npm\")",
+      "Bash(cmd /c \"where node\")",
+      "Bash(cmd /c \"where node & where npm & where bun\")",
+      "Bash(/c/Users/dgoli/AppData/Local/Programs/Antigravity/bin/antigravity --version)",
+      "Bash(/c/Users/dgoli/AppData/Local/Programs/Antigravity/bin/antigravity node:*)",
+      "Read(//c/Users/dgoli/.bun/**)",
+      "Read(//c/Users/dgoli/scoop/**)",
+      "Read(//c/Users/dgoli/.volta/**)",
+      "Bash(echo $PATH)",
+      "Bash(powershell -Command \"Get-Command node,npm,bun -ErrorAction SilentlyContinue | Select-Object Name,Source\")",
+      "Bash(powershell -Command \"Get-Command node -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command \"winget install OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements\")",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(npm --version)",
+      "Bash(npm create:*)",
+      "Bash(1:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(ls D:/work/dashtracker/node_modules/.bin/vite*)"
+    ]
+  }
+}
