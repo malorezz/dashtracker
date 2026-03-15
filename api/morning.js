@@ -80,7 +80,7 @@ export default async function handler(req, res) {
 
     const replyMarkup = {
       inline_keyboard: [
-        [{ text: '📱 Відкрити трекер', url: TRACKER_URL }],
+        [{ text: '📱 Відкрити трекер', web_app: { url: TRACKER_URL } }],
       ],
     };
 

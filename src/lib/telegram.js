@@ -60,11 +60,17 @@ export function hapticNotification(type = 'success') {
 }
 
 /**
- * For dev: mock a fake user_id if not running in Telegram
+ * Returns Telegram user ID, or dev fallback when running on localhost.
+ * Returns null if opened outside Telegram in production (e.g. plain browser url).
  */
 export function getEffectiveUserId() {
   const telegramId = getTelegramUserId()
   if (telegramId) return telegramId
-  // Dev fallback
-  return 'dev-user-123'
+
+  // Dev fallback — only on localhost
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'dev-user-123'
+  }
+
+  return null
 }

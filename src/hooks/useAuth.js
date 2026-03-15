@@ -42,7 +42,7 @@ export function useAuth() {
         }
 
         const id = getEffectiveUserId()
-        if (!id) throw new Error('Не вдалося отримати ID користувача')
+        if (!id) throw new Error('Відкрийте додаток через меню бота')
         setUserId(id)
       } catch (e) {
         setError(e.message)
