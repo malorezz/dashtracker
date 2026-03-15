@@ -56,7 +56,7 @@ export default async function handler(req, res) {
 
     const todayHabits = (habits || []).filter((h) => {
       if (h.frequency_type === 'daily') return true;
-      if (h.frequency_type === 'weekly' && Array.isArray(h.frequency_days)) {
+      if (h.frequency_type === 'specific' && Array.isArray(h.frequency_days)) {
         return h.frequency_days.includes(todayDbDay);
       }
       return false;
