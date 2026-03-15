@@ -113,6 +113,13 @@ export function useStats(userId) {
     })
   }
 
+  // Weekly logs set: "habitId:date" for the last 7 days
+  const weeklyLogs = new Set(
+    logs
+      .filter(l => days7.includes(l.date))
+      .map(l => `${l.habit_id}:${l.date}`)
+  )
+
   return {
     habits,
     logs,
@@ -123,6 +130,7 @@ export function useStats(userId) {
     streak,
     heatmapData: heatmapData(),
     habitBarData: habitBarData(),
+    weeklyLogs,
     completionRate,
     refetch: fetchStats,
   }

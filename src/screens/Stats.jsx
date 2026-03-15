@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { useStats } from '../hooks/useStats'
 import ErrorState from '../components/ErrorState'
 import { SkeletonCard } from '../components/SkeletonLoader'
-import { formatShortDate } from '../lib/utils'
+import { getLastNDays, formatShortDate } from '../lib/utils'
 
 // Heatmap intensity: 0 = empty, 1-3 = light, 4-6 = medium, 7+ = dark
 function heatColor(count) {
@@ -83,6 +83,79 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null
 }
 
+const DAY_LABELS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
+
+function WeeklyBreakdown({ habits, weeklyLogs }) {
+  // weeklyLogs: Set of "habitId:date" strings for this week
+  const days7 = getLastNDays(7)
+
+  return (
+    <div className="bg-white dark:bg-[#232e3c] rounded-xl p-4">
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Цей тиждень</h3>
+      {habits.length === 0 ? (
+        <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">Немає звичок</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr>
+                <th className="text-left text-gray-500 dark:text-gray-400 font-medium pb-2 pr-2 w-24">Звичка</th>
+                {days7.map(day => {
+                  const d = new Date(day + 'T00:00:00')
+                  const isToday = day === days7[days7.length - 1]
+                  const isoDay = (d.getDay() + 6) % 7
+                  return (
+                    <th key={day} className={`pb-2 text-center font-medium ${isToday ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                      {DAY_LABELS_SHORT[isoDay]}
+                    </th>
+                  )
+                })}
+                <th className="pb-2 text-right text-gray-400 dark:text-gray-500 font-medium">%</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+              {habits.map(habit => {
+                let scheduledDays = 0
+                let doneDays = 0
+                return (
+                  <tr key={habit.id}>
+                    <td className="py-2 pr-2 text-gray-700 dark:text-gray-300 truncate max-w-[80px]">
+                      {habit.emoji} {habit.name}
+                    </td>
+                    {days7.map(day => {
+                      const d = new Date(day + 'T00:00:00')
+                      const isoDay = (d.getDay() + 6) % 7
+                      const scheduled = habit.frequency_type === 'daily'
+                        || (Array.isArray(habit.frequency_days) && habit.frequency_days.includes(isoDay))
+                      const done = weeklyLogs.has(`${habit.id}:${day}`)
+                      if (scheduled) scheduledDays++
+                      if (scheduled && done) doneDays++
+                      return (
+                        <td key={day} className="py-2 text-center">
+                          {!scheduled ? (
+                            <span className="text-gray-200 dark:text-white/10">—</span>
+                          ) : done ? (
+                            <span className="text-green-500">✓</span>
+                          ) : (
+                            <span className="text-gray-300 dark:text-white/20">○</span>
+                          )}
+                        </td>
+                      )
+                    })}
+                    <td className="py-2 text-right font-medium text-gray-600 dark:text-gray-400">
+                      {scheduledDays === 0 ? '—' : `${Math.round((doneDays / scheduledDays) * 100)}%`}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Stats({ userId }) {
   const {
     habits,
@@ -93,6 +166,7 @@ export default function Stats({ userId }) {
     streak,
     heatmapData,
     habitBarData,
+    weeklyLogs,
     refetch,
   } = useStats(userId)
 
@@ -133,6 +207,9 @@ export default function Stats({ userId }) {
           <StatCard label="За 30 днів" value={rate30} suffix="%" color="text-purple-500 dark:text-purple-400" />
           <StatCard label="Streak" value={streak} suffix=" 🔥" color="text-orange-500 dark:text-orange-400" />
         </div>
+
+        {/* Weekly breakdown */}
+        <WeeklyBreakdown habits={habits} weeklyLogs={weeklyLogs} />
 
         {/* Heatmap */}
         <Heatmap data={heatmapData} />

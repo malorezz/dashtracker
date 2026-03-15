@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 
 export function useGoals(userId) {
   const [goals, setGoals] = useState([])
+  const [tasks, setTasks] = useState({}) // { goalId: [task, ...] }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -11,13 +12,32 @@ export function useGoals(userId) {
     setLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
-        .from('goals')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      setGoals(data || [])
+      const [goalsRes, tasksRes] = await Promise.all([
+        supabase
+          .from('goals')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('goal_tasks')
+          .select('*')
+          .eq('user_id', userId)
+          .order('order_index', { ascending: true }),
+      ])
+      if (goalsRes.error) throw goalsRes.error
+      if (tasksRes.error) {
+        // Table may not exist yet — ignore gracefully
+        console.warn('goal_tasks not available:', tasksRes.error.message)
+        setGoals(goalsRes.data || [])
+        return
+      }
+      setGoals(goalsRes.data || [])
+      const taskMap = {}
+      for (const task of tasksRes.data || []) {
+        if (!taskMap[task.goal_id]) taskMap[task.goal_id] = []
+        taskMap[task.goal_id].push(task)
+      }
+      setTasks(taskMap)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -72,10 +92,76 @@ export function useGoals(userId) {
       .eq('user_id', userId)
     if (error) throw error
     setGoals(prev => prev.filter(g => g.id !== id))
+    setTasks(prev => { const next = { ...prev }; delete next[id]; return next })
   }, [userId])
+
+  // --- Goal Tasks ---
+
+  const addTask = useCallback(async (goalId, title) => {
+    const existingTasks = tasks[goalId] || []
+    const maxOrder = existingTasks.length > 0
+      ? Math.max(...existingTasks.map(t => t.order_index))
+      : -1
+    const { data: newTask, error } = await supabase
+      .from('goal_tasks')
+      .insert({ goal_id: goalId, user_id: userId, title: title.trim(), order_index: maxOrder + 1 })
+      .select()
+      .single()
+    if (error) throw error
+    setTasks(prev => ({
+      ...prev,
+      [goalId]: [...(prev[goalId] || []), newTask],
+    }))
+    return newTask
+  }, [tasks, userId])
+
+  const toggleTask = useCallback(async (goalId, taskId) => {
+    const goalTasks = tasks[goalId] || []
+    const task = goalTasks.find(t => t.id === taskId)
+    if (!task) return
+    const next = !task.completed
+    // Optimistic
+    setTasks(prev => ({
+      ...prev,
+      [goalId]: (prev[goalId] || []).map(t =>
+        t.id === taskId ? { ...t, completed: next, completed_at: next ? new Date().toISOString() : null } : t
+      ),
+    }))
+    const { error } = await supabase
+      .from('goal_tasks')
+      .update({ completed: next, completed_at: next ? new Date().toISOString() : null })
+      .eq('id', taskId)
+      .eq('user_id', userId)
+    if (error) {
+      // Revert
+      setTasks(prev => ({
+        ...prev,
+        [goalId]: (prev[goalId] || []).map(t =>
+          t.id === taskId ? { ...t, completed: task.completed, completed_at: task.completed_at } : t
+        ),
+      }))
+    }
+  }, [tasks, userId])
+
+  const deleteTask = useCallback(async (goalId, taskId) => {
+    setTasks(prev => ({
+      ...prev,
+      [goalId]: (prev[goalId] || []).filter(t => t.id !== taskId),
+    }))
+    const { error } = await supabase
+      .from('goal_tasks')
+      .delete()
+      .eq('id', taskId)
+      .eq('user_id', userId)
+    if (error) {
+      // Revert by refetching
+      fetchGoals()
+    }
+  }, [userId, fetchGoals])
 
   return {
     goals,
+    tasks,
     activeGoals,
     completedGoals,
     loading,
@@ -85,6 +171,9 @@ export function useGoals(userId) {
     completeGoal,
     uncompleteGoal,
     deleteGoal,
+    addTask,
+    toggleTask,
+    deleteTask,
     refetch: fetchGoals,
   }
 }

@@ -10,6 +10,9 @@ export function useAuth() {
   useEffect(() => {
     async function init() {
       try {
+        // Tell Telegram the app is ready (hides native loading indicator)
+        window.Telegram?.WebApp?.ready()
+
         // Expand the WebApp
         expandWebApp()
 

@@ -107,7 +107,127 @@ function GoalForm({ initial, onSave, onClose }) {
   )
 }
 
-function GoalCard({ goal, onComplete, onUncomplete, onEdit, onDelete }) {
+function TasksList({ goalId, goalCompleted, tasks, onToggle, onDelete, onAdd }) {
+  const [newTitle, setNewTitle] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [showInput, setShowInput] = useState(false)
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!newTitle.trim()) return
+    setAdding(true)
+    try {
+      await onAdd(goalId, newTitle)
+      setNewTitle('')
+      setShowInput(false)
+      hapticFeedback('light')
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const completed = tasks.filter(t => t.completed).length
+  const total = tasks.length
+
+  return (
+    <div className="mt-3 border-t border-gray-100 dark:border-white/10 pt-3">
+      {total > 0 && (
+        <div className="mb-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Кроки: {completed}/{total}</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">{Math.round((completed / total) * 100)}%</span>
+          </div>
+          <div className="h-1 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500 rounded-full transition-all duration-300"
+              style={{ width: `${total === 0 ? 0 : Math.round((completed / total) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        {tasks.map(task => (
+          <div key={task.id} className="flex items-center gap-2 group">
+            <button
+              onClick={() => { hapticFeedback('light'); onToggle(goalId, task.id) }}
+              disabled={goalCompleted}
+              className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all
+                ${task.completed
+                  ? 'bg-green-500 border-green-500'
+                  : 'border-gray-300 dark:border-gray-600'
+                } disabled:opacity-50`}
+            >
+              {task.completed && (
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="w-2.5 h-2.5">
+                  <path d="M5 12l5 5L20 7" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </button>
+            <span className={`flex-1 text-xs transition-colors
+              ${task.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}`}>
+              {task.title}
+            </span>
+            {!goalCompleted && (
+              <button
+                onClick={() => onDelete(goalId, task.id)}
+                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-gray-300 dark:text-gray-600 hover:text-red-400"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {!goalCompleted && (
+        showInput ? (
+          <form onSubmit={handleAdd} className="flex gap-2 mt-2">
+            <input
+              type="text"
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              placeholder="Новий крок..."
+              autoFocus
+              className="flex-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-xs text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              type="submit"
+              disabled={adding || !newTitle.trim()}
+              className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium disabled:opacity-50"
+            >
+              {adding ? '...' : 'Додати'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowInput(false); setNewTitle('') }}
+              className="px-2 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 text-xs"
+            >
+              ✕
+            </button>
+          </form>
+        ) : (
+          <button
+            onClick={() => setShowInput(true)}
+            className="flex items-center gap-1.5 mt-2 text-xs text-blue-500 dark:text-blue-400 font-medium"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Додати крок
+          </button>
+        )
+      )}
+    </div>
+  )
+}
+
+function GoalCard({ goal, goalTasks, onComplete, onUncomplete, onEdit, onDelete, onAddTask, onToggleTask, onDeleteTask }) {
+  const [showTasks, setShowTasks] = useState(false)
   const deadline = goal.deadline ? formatDeadline(goal.deadline) : null
   const daysLeft = goal.deadline ? (() => {
     const d = new Date(goal.deadline + 'T00:00:00')
@@ -115,6 +235,8 @@ function GoalCard({ goal, onComplete, onUncomplete, onEdit, onDelete }) {
     return Math.round((d - now) / (1000*60*60*24))
   })() : null
   const isOverdue = daysLeft !== null && daysLeft < 0 && !goal.completed
+  const tasks = goalTasks || []
+  const tasksDone = tasks.filter(t => t.completed).length
 
   return (
     <div className={`bg-white dark:bg-[#232e3c] rounded-xl p-4 border-l-4 transition-all
@@ -149,7 +271,35 @@ function GoalCard({ goal, onComplete, onUncomplete, onEdit, onDelete }) {
               Виконано {formatDisplayDate(goal.completed_at.split('T')[0])}
             </p>
           )}
+
+          {/* Tasks toggle */}
+          {(tasks.length > 0 || !goal.completed) && (
+            <button
+              onClick={() => setShowTasks(v => !v)}
+              className="flex items-center gap-1.5 mt-2 text-xs text-gray-500 dark:text-gray-400 font-medium"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`w-3.5 h-3.5 transition-transform ${showTasks ? 'rotate-180' : ''}`}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+              {tasks.length > 0
+                ? `Кроки (${tasksDone}/${tasks.length})`
+                : 'Кроки'
+              }
+            </button>
+          )}
+
+          {showTasks && (
+            <TasksList
+              goalId={goal.id}
+              goalCompleted={goal.completed}
+              tasks={tasks}
+              onToggle={onToggleTask}
+              onDelete={onDeleteTask}
+              onAdd={onAddTask}
+            />
+          )}
         </div>
+
         {/* Actions */}
         <div className="flex flex-col gap-1.5 flex-shrink-0">
           {!goal.completed ? (
@@ -205,7 +355,13 @@ function GoalCard({ goal, onComplete, onUncomplete, onEdit, onDelete }) {
 }
 
 export default function Goals({ userId }) {
-  const { activeGoals, completedGoals, loading, error, addGoal, updateGoal, completeGoal, uncompleteGoal, deleteGoal, refetch } = useGoals(userId)
+  const {
+    activeGoals, completedGoals, tasks,
+    loading, error,
+    addGoal, updateGoal, completeGoal, uncompleteGoal, deleteGoal,
+    addTask, toggleTask, deleteTask,
+    refetch,
+  } = useGoals(userId)
   const [modalOpen, setModalOpen] = useState(false)
   const [editGoal, setEditGoal] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
@@ -277,10 +433,14 @@ export default function Goals({ userId }) {
               <GoalCard
                 key={goal.id}
                 goal={goal}
+                goalTasks={tasks[goal.id] || []}
                 onComplete={completeGoal}
                 onUncomplete={uncompleteGoal}
                 onEdit={handleEdit}
                 onDelete={(id) => setDeleteId(id)}
+                onAddTask={addTask}
+                onToggleTask={toggleTask}
+                onDeleteTask={deleteTask}
               />
             ))}
           </div>
@@ -304,10 +464,14 @@ export default function Goals({ userId }) {
                   <GoalCard
                     key={goal.id}
                     goal={goal}
+                    goalTasks={tasks[goal.id] || []}
                     onComplete={completeGoal}
                     onUncomplete={uncompleteGoal}
                     onEdit={handleEdit}
                     onDelete={(id) => setDeleteId(id)}
+                    onAddTask={addTask}
+                    onToggleTask={toggleTask}
+                    onDeleteTask={deleteTask}
                   />
                 ))}
               </div>

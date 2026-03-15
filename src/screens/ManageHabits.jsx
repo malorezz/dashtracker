@@ -155,7 +155,7 @@ function HabitForm({ initial, onSave, onClose }) {
   )
 }
 
-function SortableHabitRow({ habit, onEdit, onDelete }) {
+function SortableHabitRow({ habit, streak, onEdit, onDelete }) {
   const {
     attributes,
     listeners,
@@ -195,7 +195,14 @@ function SortableHabitRow({ habit, onEdit, onDelete }) {
       <span className="text-2xl">{habit.emoji || '✨'}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{habit.name}</p>
-        <p className="text-xs text-gray-400 dark:text-gray-500">{freqLabel}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-xs text-gray-400 dark:text-gray-500">{freqLabel}</p>
+          {streak > 0 && (
+            <span className="text-xs font-medium text-orange-500 dark:text-orange-400">
+              🔥 {streak}
+            </span>
+          )}
+        </div>
       </div>
       <button
         onClick={() => onEdit(habit)}
@@ -222,7 +229,7 @@ function SortableHabitRow({ habit, onEdit, onDelete }) {
 }
 
 export default function ManageHabits({ userId, onBack }) {
-  const { habits, loading, error, addHabit, updateHabit, deleteHabit, reorderHabits, refetch } = useHabits(userId)
+  const { habits, streaks, loading, error, addHabit, updateHabit, deleteHabit, reorderHabits, refetch } = useHabits(userId)
   const [modalOpen, setModalOpen] = useState(false)
   const [editHabit, setEditHabit] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
@@ -336,6 +343,7 @@ export default function ManageHabits({ userId, onBack }) {
                   <SortableHabitRow
                     key={habit.id}
                     habit={habit}
+                    streak={streaks[habit.id] || 0}
                     onEdit={handleEdit}
                     onDelete={(id) => setDeleteId(id)}
                   />
